@@ -3,19 +3,17 @@ using System;
 namespace sudoku {
     class Program {
         static void Main(string[] args) {
-            if (args.Length > 0) {
-                Sudoku s = new Sudoku(args[0]);
-            }
-
-            Console.WriteLine("Enter a search algorithm");
+            if (args.Length > 0) new Sudoku(args[0]);
+            else Console.WriteLine("Enter a search algorithm");
         }
     }
 
     class Sudoku {
-        // sudoku structuur
-        int[,] block = new int[9, 9];
+        // structuur
+        int[,] blocks = new int[9, 9];
         int mask = 0;
 
+        // initialiseer de sudoku en pas een algoritme toe
         public Sudoku(string alg) {
             Parse();
 
@@ -24,6 +22,8 @@ namespace sudoku {
             else Console.WriteLine("Unkown search algorithm");
         }
 
+        // lees de sudoku uit een file
+        // todo meerdere sudokus
         public void Parse() {
             Console.ReadLine();
             // loop door de individuele elementen van de puzzel
@@ -33,8 +33,8 @@ namespace sudoku {
                     int c = Console.Read() - 48;
                     // als deze niet leeg is ...
                     if (c != 0) {
-                        // sla het dan op
-                        block[x / 3 + y / 3, c - 1] |= (1 << x % 3 + y % 3);
+                        // ... sla het dan op
+                        blocks[x / 3 + y / 3, x % 3 + y % 3 * 3] = c;
                         mask |= (1 << x + y * 9);
                     }
                 }
@@ -43,11 +43,18 @@ namespace sudoku {
             }
         }
 
-        static void IteratedLocalSearch() {
-            // todo implement
+        private void Swap(int x1, int y1, int x2, int y2) {
+
         }
-        static void SimulatedAnnealingSearch() {
-            // todo implement
+        private void Value() {
+
+        }
+
+        private void IteratedLocalSearch() {
+            // todo implementeren
+        }
+        private void SimulatedAnnealingSearch() {
+            // todo implementeren
         }
     }
 }
