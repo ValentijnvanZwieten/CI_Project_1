@@ -10,7 +10,7 @@ namespace sudoku {
 
     class Sudoku {
         // structuur
-        int[,] blocks = new int[9, 9];
+        int[] blocks = new int[9 * 9];
         int mask = 0;
 
         // initialiseer de sudoku en pas een algoritme toe
@@ -34,7 +34,7 @@ namespace sudoku {
                     // als deze niet leeg is ...
                     if (c != 0) {
                         // ... sla het dan op
-                        blocks[x / 3 + y / 3, x % 3 + y % 3 * 3] = c;
+                        blocks[x + y * 9] = c;
                         mask |= (1 << x + y * 9);
                     }
                 }
@@ -43,11 +43,15 @@ namespace sudoku {
             }
         }
 
+        // wissel de waardes van twee coordinaten
         private void Swap(int x1, int y1, int x2, int y2) {
-
+            int index1 = x1 + y1 * 9, index2 = x2 + y2 * 9, value1 = blocks[index1];
+            blocks[index1] = blocks[index2];
+            blocks[index2] = value1;
         }
-        private void Value() {
-
+        // lees de waarde van een coordinaat
+        private int Value(int x, int y) {
+            return blocks[x + y * 9];
         }
 
         private void IteratedLocalSearch() {
