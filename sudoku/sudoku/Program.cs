@@ -14,8 +14,9 @@ namespace sudoku
 
     class Sudoku
     {
-        int[] values = new int[9 * 9];
-        bool[] mask = new bool[9 * 9];
+        int N, sN;
+        int[] values;
+        bool[] mask;
         int score;
 
         Random rnd = new Random();
@@ -27,8 +28,12 @@ namespace sudoku
         // initialiseer de sudoku en pas een algoritme toe
         public Sudoku(string alg)
         {
+            // todo variabele N
+            N = 9; sN = (int) Math.Sqrt(N);
+            values = new int[N * N];
+            mask = new bool[N * N];
             Parse();
-            EvalAll();
+            score = Score();
 
             if (alg == "ILS") IteratedLocalSearch();
             else if (alg == "SAS") SimulatedAnnealingSearch();
@@ -43,9 +48,9 @@ namespace sudoku
             Console.ReadLine();
 
             // loop door de individuele elementen van de puzzel
-            for (int y = 0; y < 9; y++)
+            for (int y = 0; y < N; y++)
             {
-                for (int x = 0; x < 9; x++)
+                for (int x = 0; x < N; x++)
                 {
                     // pak de waarde van dit element
                     int c = Console.Read() - 48;
@@ -60,6 +65,12 @@ namespace sudoku
                 // ga naar de volgende regel
                 while (Console.Read() != '\n') ;
             }
+
+            // vul de lege plekken in
+            for (int b = 0; b < N; b++)
+            {
+
+            }
         }
 
         ///
@@ -67,41 +78,50 @@ namespace sudoku
         ///
 
         // lees de waarde van een coordinaat
-        private T GetValue<T>(int x, int y, T[] a)
-        {
-            return a[x + y * 9];
-        }
         private T GetValue<T>(int block, int x, int y, T[] a)
         {
-            return a[x + y * 9];
+            x += block / sN * sN;
+            y += block % sN * sN;
+            return GetValue(x, y, a);
+        }
+        private T GetValue<T>(int x, int y, T[] a)
+        {
+            return a[x + y * N];
         }
         // schrijf de waarde van een coordinaat
+        private void SetValue<T>(int block, int x, int y, T[] a, T value)
+        {
+            x += block / sN * sN;
+            y += block % sN * sN;
+            SetValue(x, y, a, value);
+        }
         private void SetValue<T>(int x, int y, T[] a, T value)
         {
-            a[x + y * 9] = value;
+            a[x + y * N] = value;
         }
-        // evalueer de hele sudoku
-        private void EvalAll()
+        // evalueer de sudoku
+        private int Score()
         {
-            score = 0;
+            int eval = 0;
 
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < N; i++)
             {
-                score += Eval(i, i);
+                eval += Score(i, i);
             }
+
+            return eval;
         }
-        // evalueer een specifieke rij/kolom combinatie
-        private int Eval(int row, int column)
+        private int Score(int row, int column)
         {
             int flag = 0;
             int eval = 0;
 
             // check de rij
-            for (int x = 0; x < 9; x++)
+            for (int x = 0; x < N; x++)
             {
-                flag |= 1 << values[x + column * 9];
+                flag |= 1 << GetValue(x, column, values);
             }
-            for (int x = 0; x < 9; x++)
+            for (int x = 0; x < N; x++)
             {
                 eval += flag |= 1 << x;
             }
@@ -109,11 +129,11 @@ namespace sudoku
             flag = 0;
 
             // check de kolom
-            for (int y = 0; y < 9; y++)
+            for (int y = 0; y < N; y++)
             {
-                flag |= 1 << values[y * 9 + row];
+                flag |= 1 << GetValue(row, y, values);
             }
-            for (int y = 0; y < 9; y++)
+            for (int y = 0; y < N; y++)
             {
                 eval += flag |= 1 << y;
             }
@@ -127,7 +147,7 @@ namespace sudoku
             if (GetValue(x1, y1, mask) || GetValue(x2, y2, mask)) throw new ArgumentException("Swapped value(s) is/are static");
 
             // bewaar de originele score en waarde
-            int oldscore = Eval(x1, y1) + Eval(x2, y2);
+            int oldscore = Score(x1, y1) + Score(x2, y2);
             int oldvalue = GetValue(x1, y1, values);
 
             // voer de wisseling uit
@@ -135,7 +155,7 @@ namespace sudoku
             SetValue(x2, y2, values, oldvalue);
 
             // geef het verschil in scores terug
-            return (Eval(x1, y1) + Eval(x2, y2)) - oldscore;
+            return (Score(x1, y1) + Score(x2, y2)) - oldscore;
         }
 
         ///
@@ -144,20 +164,15 @@ namespace sudoku
 
         private void IteratedLocalSearch()
         {
-            // bepaal de linkerboven-coordinaat van het block dat je gaat onderzoeken
             int block = 0; // rnd.Next(9);
-            int offsety = block / 3 * 3;
-            int offsetx = block % 3 * 3;
-
             Queue<Tuple<int, int>> swap = new Queue<Tuple<int, int>>();
 
             // verzamel alle coordinaten die verwisseld kunnen worden
-            for (int y = offsety; y < offsety + 3; y++)
+            for (int y = 0; y < sN; y++)
             {
-                for (int x = offsetx; x < offsetx + 3; x++)
+                for (int x = 0; x < sN; x++)
                 {
-                    if (!GetValue(x, y, mask))
-                        swap.Enqueue(new Tuple<int, int>(x, y));
+                    if (!GetValue(block, x, y, mask)) swap.Enqueue(new Tuple<int, int>(x, y));
                 }
             }
 
