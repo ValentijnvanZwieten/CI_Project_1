@@ -29,7 +29,7 @@ namespace sudoku
         public Sudoku(string alg)
         {
             // todo variabele N
-            N = 9; sN = (int) Math.Sqrt(N);
+            N = 9; sN = (int)Math.Sqrt(N);
             values = new int[N * N];
             mask = new bool[N * N];
             Parse();
@@ -66,10 +66,38 @@ namespace sudoku
                 while (Console.Read() != '\n') ;
             }
 
+            List<int> present;
+            int oldvalue, newvalue;
+
             // vul de lege plekken in
             for (int b = 0; b < N; b++)
             {
+                present = new List<int>();
+                newvalue = 0;
 
+                // kijk welke getallen al gebruikt zijn per block
+                for (int y = 0; y < sN; y++)
+                {
+                    for (int x = 0; x < sN; x++)
+                    {
+                        oldvalue = GetValue(b, x, y, values);
+                        if (oldvalue != 0) present.Add(oldvalue);
+                    }
+                }
+
+                // voeg de overige getallen toe
+                for (int y = 0; y < sN; y++)
+                {
+                    for (int x = 0; x < sN; x++)
+                    {
+                        if (GetValue(b, x, y, values) == 0)
+                        {
+                            // verhoog het getal totdat deze niet voorkomt in dit block
+                            while (present.Contains(newvalue)) newvalue++;
+                            SetValue(b, x, y, values, newvalue);
+                        }
+                    }
+                }
             }
         }
 
