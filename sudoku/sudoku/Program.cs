@@ -18,6 +18,7 @@ namespace sudoku
         int[] values;
         bool[] mask;
         int score;
+        int iteration;
 
         Random rnd = new Random();
 
@@ -34,8 +35,10 @@ namespace sudoku
             mask = new bool[N * N];
             Parse();
             score = Score();
+            iteration = 0;
 
-            if (alg == "ILS") IteratedLocalSearch(5);
+            // todo parameters
+            if (alg == "ILS") IteratedLocalSearch(5, 100, 100, 10);
             else if (alg == "SAS") SimulatedAnnealingSearch(2);
             else Console.WriteLine("Unkown search algorithm");
         }
@@ -147,11 +150,11 @@ namespace sudoku
             // check de rij
             for (int x = 0; x < N; x++)
             {
-                flag |= 1 << GetValue(x, column, values);
+                flag |= 1 << GetValue(x, column, values) - 1;
             }
             for (int x = 0; x < N; x++)
             {
-                eval += flag |= 1 << x;
+                eval += flag &= 1 << x;
             }
 
             flag = 0;
@@ -159,20 +162,21 @@ namespace sudoku
             // check de kolom
             for (int y = 0; y < N; y++)
             {
-                flag |= 1 << GetValue(row, y, values);
+                flag |= 1 << GetValue(row, y, values) - 1;
             }
             for (int y = 0; y < N; y++)
             {
-                eval += flag |= 1 << y;
+                eval += flag &= 1 << y;
             }
 
             return eval;
         }
         // lever de coordinaten op die verwisseld kunnen worden binnen een blok
-        private Queue<Tuple<int, int>> Swappable(int block)
+        // todo cleanup
+        private Queue<Tuple<int, int>> SwappableQ(int block)
         {
             Queue<Tuple<int, int>> swappable = new Queue<Tuple<int, int>>();
-            
+
             for (int y = 0; y < sN; y++)
             {
                 for (int x = 0; x < sN; x++)
@@ -183,7 +187,31 @@ namespace sudoku
 
             return swappable;
         }
+        private List<Tuple<int, int>> SwappableL(int block)
+        {
+            List<Tuple<int, int>> swappable = new List<Tuple<int, int>>();
+
+            for (int y = 0; y < sN; y++)
+            {
+                for (int x = 0; x < sN; x++)
+                {
+                    if (!GetValue(block, x, y, mask)) swappable.Add(new Tuple<int, int>(x, y));
+                }
+            }
+
+            return swappable;
+        }
         // wissel de waardes van twee coordinaten
+        private int Swap(int block, int x1, int y1, int x2, int y2)
+        {
+            int offsetx = block / sN * sN;
+            int offsety = block % sN * sN;
+            x1 += offsetx;
+            x2 += offsetx;
+            y1 += offsety;
+            y2 += offsety;
+            return Swap(x1, y1, x2, y2);
+        }
         private int Swap(int x1, int y1, int x2, int y2)
         {
             // voorkom dat vaste waardes gewisseld worden
@@ -205,9 +233,14 @@ namespace sudoku
         /// ZOEKALGORITMES 
         ///
 
-        private void IteratedLocalSearch(int S)
+        private void IteratedLocalSearch(int S, int ptimeout, int ptimeouttotal, int walkbudget)
         {
-            Queue<Tuple<int, int>> swappable = Swappable(0); // rnd.Next(9);
+            // stop als het walk-budget op is
+            if (walkbudget == 0) return;
+            Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
+
+            int block = rnd.Next(N);
+            Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
             // verwissel deze coordinaten en bepaal welke keuze het beste is
             Tuple<int, int> current1, best1 = new Tuple<int, int>(-1, -1), best2 = new Tuple<int, int>(-1, -1);
@@ -219,7 +252,7 @@ namespace sudoku
                 foreach (Tuple<int, int> current2 in swappable)
                 {
                     // bereken de score van de huidige wisseling ...
-                    currentscore = Swap(current1.Item1, current1.Item2, current2.Item1, current2.Item2);
+                    currentscore = Swap(block, current1.Item1, current1.Item2, current2.Item1, current2.Item2);
 
                     // ... en onthoud deze als het de beste tot nu toe is
                     if (currentscore < bestscore)
@@ -230,27 +263,43 @@ namespace sudoku
                     }
 
                     // zet de puzzel terug naar de beginstand
-                    Swap(current2.Item1, current2.Item2, current1.Item1, current1.Item2);
+                    Swap(block, current2.Item1, current2.Item2, current1.Item1, current1.Item2);
                 }
             }
 
-            // als er een goede wisseling is gevonden, voer deze dan uit en ga door
-            if (bestscore < 0 && best1.Item1 != -1)
+            // verklein het budget als er geen verbetering is gevonden
+            // todo betere plek
+            if (bestscore == 0) --ptimeout;
+
+            // als er een positieve wisseling is gevonden, voer deze dan uit en ga door
+            if (bestscore <= 0 && ptimeout > 0 && best1.Item1 != -1)
             {
-                Swap(best1.Item1, best1.Item2, best2.Item1, best2.Item2);
+                Swap(block, best1.Item1, best1.Item2, best2.Item1, best2.Item2);
                 score += bestscore;
-                IteratedLocalSearch(S);
+                IteratedLocalSearch(S, ptimeout, ptimeouttotal, walkbudget);
             }
             // zo niet, begin dan een random walk
             else
             {
-                // todo random walk
+                // todo cleanup
+                Console.WriteLine("Running random walk...\n");
+                List<Tuple<int, int>> s = SwappableL(block);
+                int i1, i2;
+                for (int i = 0; i < S; i++)
+                {
+                    // todo optimize
+                    i1 = rnd.Next(s.Count);
+                    i2 = rnd.Next(s.Count);
+                    while (i2 == i1) i2 = rnd.Next(s.Count);
+                    score += Swap(block, s[i1].Item1, s[i1].Item2, s[i2].Item1, s[i2].Item2);
+                }
+                IteratedLocalSearch(S, ptimeouttotal, ptimeouttotal, --walkbudget);
             }
         }
 
         private void SimulatedAnnealingSearch(float c)
         {
-            Queue<Tuple<int, int>> swappable = Swappable(0); // rnd.Next(9);
+            Queue<Tuple<int, int>> swappable = SwappableQ(rnd.Next(N));
 
             // kies random 2 verwisselbare coordinaten
             Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
