@@ -168,6 +168,21 @@ namespace sudoku
 
             return eval;
         }
+        // lever de coordinaten op die verwisseld kunnen worden binnen een blok
+        private Queue<Tuple<int, int>> Swappable(int block)
+        {
+            Queue<Tuple<int, int>> swappable = new Queue<Tuple<int, int>>();
+            
+            for (int y = 0; y < sN; y++)
+            {
+                for (int x = 0; x < sN; x++)
+                {
+                    if (!GetValue(block, x, y, mask)) swappable.Enqueue(new Tuple<int, int>(x, y));
+                }
+            }
+
+            return swappable;
+        }
         // wissel de waardes van twee coordinaten
         private int Swap(int x1, int y1, int x2, int y2)
         {
@@ -192,26 +207,16 @@ namespace sudoku
 
         private void IteratedLocalSearch()
         {
-            int block = 0; // rnd.Next(9);
-            Queue<Tuple<int, int>> swap = new Queue<Tuple<int, int>>();
-
-            // verzamel alle coordinaten die verwisseld kunnen worden
-            for (int y = 0; y < sN; y++)
-            {
-                for (int x = 0; x < sN; x++)
-                {
-                    if (!GetValue(block, x, y, mask)) swap.Enqueue(new Tuple<int, int>(x, y));
-                }
-            }
+            Queue<Tuple<int, int>> swappable = Swappable(0); // rnd.Next(9);
 
             // verwissel deze coordinaten en bepaal welke keuze het beste is
             Tuple<int, int> current1, best1 = new Tuple<int, int>(-1, -1), best2 = new Tuple<int, int>(-1, -1);
             int currentscore, bestscore = 81;
-            while (swap.Count != 0)
+            while (swappable.Count != 0)
             {
-                current1 = swap.Dequeue();
+                current1 = swappable.Dequeue();
 
-                foreach (Tuple<int, int> current2 in swap)
+                foreach (Tuple<int, int> current2 in swappable)
                 {
                     // bereken de score van de huidige wisseling ...
                     currentscore = Swap(current1.Item1, current1.Item2, current2.Item1, current2.Item2);
@@ -246,36 +251,20 @@ namespace sudoku
 
         private void SimulatedAnnealingSearch(float c)
         {
-            //  bepaal de linkerboven-coordinaat van het block dat je gaat onderzoeken
-            int block = rnd.Next(9);
-            int offsety = (block - 1) / 3 * 3;
-            int offsetx = (block - 1) % 3 * 3;
-
-            Queue<Tuple<int, int>> swap = new Queue<Tuple<int, int>>();
-
-            // verzamel alle coordinaten die verwisseld kunnen worden
-            for (int y = offsety; y < offsety + 3; y++)
-            {
-                for (int x = offsetx; x < offsetx + 3; x++)
-                {
-                    if (!GetValue(x, y, mask)) swap.Enqueue(new Tuple<int, int>(x, y));
-                }
-            }
+            Queue<Tuple<int, int>> swappable = Swappable(0); // rnd.Next(9);
 
             // kies random 2 verwisselbare coordinaten
             Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
-            int rndnr1 = rnd.Next(swap.Count);
-            int rndnr2 = rnd.Next(swap.Count - 1);
-
+            int rndnr1 = rnd.Next(swappable.Count);
+            int rndnr2 = rnd.Next(swappable.Count - 1);
             for (int i = 0; i <= rndnr1; i++)
             {
-                coordinate1 = swap.Dequeue();
-                if (i < rndnr1) swap.Enqueue(coordinate1);
+                coordinate1 = swappable.Dequeue();
+                if (i < rndnr1) swappable.Enqueue(coordinate1);
             }
-
             for (int i = 0; i <= rndnr2; i++)
             {
-                coordinate2 = swap.Dequeue();
+                coordinate2 = swappable.Dequeue();
             }
 
             // bepaal de nieuwe heuristische waarde
