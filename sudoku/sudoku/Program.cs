@@ -35,7 +35,7 @@ namespace sudoku
             Parse();
             score = Score();
 
-            if (alg == "ILS") IteratedLocalSearch();
+            if (alg == "ILS") IteratedLocalSearch(5);
             else if (alg == "SAS") SimulatedAnnealingSearch(2);
             else Console.WriteLine("Unkown search algorithm");
         }
@@ -73,7 +73,7 @@ namespace sudoku
             for (int b = 0; b < N; b++)
             {
                 present = new List<int>();
-                newvalue = 0;
+                newvalue = 1;
 
                 // kijk welke getallen al gebruikt zijn per block
                 for (int y = 0; y < sN; y++)
@@ -94,7 +94,7 @@ namespace sudoku
                         {
                             // verhoog het getal totdat deze niet voorkomt in dit block
                             while (present.Contains(newvalue)) newvalue++;
-                            SetValue(b, x, y, values, newvalue);
+                            SetValue(b, x, y, values, newvalue++);
                         }
                     }
                 }
@@ -205,13 +205,13 @@ namespace sudoku
         /// ZOEKALGORITMES 
         ///
 
-        private void IteratedLocalSearch()
+        private void IteratedLocalSearch(int S)
         {
             Queue<Tuple<int, int>> swappable = Swappable(0); // rnd.Next(9);
 
             // verwissel deze coordinaten en bepaal welke keuze het beste is
             Tuple<int, int> current1, best1 = new Tuple<int, int>(-1, -1), best2 = new Tuple<int, int>(-1, -1);
-            int currentscore, bestscore = 81;
+            int currentscore, bestscore = int.MaxValue;
             while (swappable.Count != 0)
             {
                 current1 = swappable.Dequeue();
@@ -239,14 +239,13 @@ namespace sudoku
             {
                 Swap(best1.Item1, best1.Item2, best2.Item1, best2.Item2);
                 score += bestscore;
-                IteratedLocalSearch();
+                IteratedLocalSearch(S);
             }
             // zo niet, begin dan een random walk
             else
             {
                 // todo random walk
             }
-
         }
 
         private void SimulatedAnnealingSearch(float c)
