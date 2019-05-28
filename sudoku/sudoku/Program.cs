@@ -38,7 +38,7 @@ namespace sudoku
             iteration = 0;
 
             // todo parameters
-            if (alg == "ILS") IteratedLocalSearch(5, 100, 100, 10);
+            if (alg == "ILS") IteratedLocalSearch(5, 100, 10);
             else if (alg == "SAS") SimulatedAnnealingSearch(2);
             else Console.WriteLine("Unkown search algorithm");
         }
@@ -233,6 +233,10 @@ namespace sudoku
         /// ZOEKALGORITMES 
         ///
 
+        private void IteratedLocalSearch(int S, int ptimeout, int walkbudget)
+        {
+            IteratedLocalSearch(S, ptimeout, ptimeout, walkbudget);
+        }
         private void IteratedLocalSearch(int S, int ptimeout, int ptimeouttotal, int walkbudget)
         {
             // stop als het walk-budget op is
@@ -267,7 +271,7 @@ namespace sudoku
                 }
             }
 
-            // verklein het budget als er geen verbetering is gevonden
+            // verklein het timeout als er geen verbetering is gevonden
             // todo betere plek
             if (bestscore == 0) --ptimeout;
 
