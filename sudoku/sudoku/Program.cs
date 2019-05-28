@@ -39,7 +39,7 @@ namespace sudoku
 
             // todo parameters
             if (alg == "ILS") IteratedLocalSearch(5, 100, 100, 10);
-            else if (alg == "SAS") SimulatedAnnealingSearch(0.5f);
+            else if (alg == "SAS") SimulatedAnnealingSearch();
             else Console.WriteLine("Unkown search algorithm");
             printSudoku();
             Console.ReadKey();
@@ -304,45 +304,50 @@ namespace sudoku
                 IteratedLocalSearch(S, ptimeouttotal, ptimeouttotal, --walkbudget);
             }
         }
-        //todo fix stackoverflow
-        private void SimulatedAnnealingSearch(float c)
+        //todo fix cooling schedule
+        private void SimulatedAnnealingSearch()
         {
-            int block = rnd.Next(N);
-            Queue<Tuple<int, int>> swappable = SwappableQ(block);
-
-            Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
-
-            // kies random 2 verwisselbare coordinaten
-            Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
-            int rndnr1 = rnd.Next(swappable.Count);
-            int rndnr2 = rnd.Next(swappable.Count - 1);
-            for (int i = 0; i <= rndnr1; i++)
+            float c = 0.5f;
+            //ga door tot de sudoku is opgelost
+            while (score > 0)
             {
-                coordinate1 = swappable.Dequeue();
-                if (i < rndnr1) swappable.Enqueue(coordinate1);
-            }
-            for (int i = 0; i <= rndnr2; i++)
-            {
-                coordinate2 = swappable.Dequeue();
-            }
+                int block = rnd.Next(N);
+                Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
-            // bepaal de nieuwe heuristische waarde
-            int currentscore;
-            currentscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
+                Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
 
-            // bepaal de kans dat een hogere waarde toch wisselt, wissel met 1 - kans terug
-            if (currentscore > score)
-            {
-                double chance = Math.Exp((score - currentscore) / c);
-                chance *= 100;
-                int rndchance = rnd.Next(100);
-                if (chance < rndchance) Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
+                // kies random 2 verwisselbare coordinaten
+                Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
+                int rndnr1 = rnd.Next(swappable.Count);
+                int rndnr2 = rnd.Next(swappable.Count - 1);
+                for (int i = 0; i <= rndnr1; i++)
+                {
+                    coordinate1 = swappable.Dequeue();
+                    if (i < rndnr1) swappable.Enqueue(coordinate1);
+                }
+                for (int i = 0; i <= rndnr2; i++)
+                {
+                    coordinate2 = swappable.Dequeue();
+                }
+
+                // bepaal de nieuwe heuristische waarde
+                int currentscore;
+                currentscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
+
+                // bepaal de kans dat een hogere waarde toch wisselt, wissel met 1 - kans terug
+                if (currentscore > score)
+                {
+                    double chance = Math.Exp((score - currentscore) / c);
+                    chance *= 100;
+                    int rndchance = rnd.Next(100);
+                    if (chance < rndchance) Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
+                    else score = currentscore;
+                }
                 else score = currentscore;
-            }
-            else score = currentscore;
 
-            float a = 0.99f;
-            if (score > 0) SimulatedAnnealingSearch(a * c);
+                float a = 0.99f;
+                c *= a;
+            }
         }
 
 
