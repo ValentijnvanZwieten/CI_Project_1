@@ -39,8 +39,10 @@ namespace sudoku
 
             // todo parameters
             if (alg == "ILS") IteratedLocalSearch(5, 100, 100, 10);
-            else if (alg == "SAS") SimulatedAnnealingSearch(2);
+            else if (alg == "SAS") SimulatedAnnealingSearch(0.5f);
             else Console.WriteLine("Unkown search algorithm");
+            printSudoku();
+            Console.ReadKey();
         }
         // lees de sudoku uit een file
         // todo meerdere sudokus
@@ -154,7 +156,10 @@ namespace sudoku
             }
             for (int x = 0; x < N; x++)
             {
-                eval += flag &= 1 << x;
+                if((flag & 1 << x) == 0)
+                {
+                    eval++;
+                }
             }
 
             flag = 0;
@@ -166,7 +171,10 @@ namespace sudoku
             }
             for (int y = 0; y < N; y++)
             {
-                eval += flag &= 1 << y;
+                if ((flag & 1 << y) == 0)
+                {
+                    eval++;
+                }
             }
 
             return eval;
@@ -296,10 +304,13 @@ namespace sudoku
                 IteratedLocalSearch(S, ptimeouttotal, ptimeouttotal, --walkbudget);
             }
         }
-
+        //todo fix stackoverflow
         private void SimulatedAnnealingSearch(float c)
         {
-            Queue<Tuple<int, int>> swappable = SwappableQ(rnd.Next(N));
+            int block = rnd.Next(N);
+            Queue<Tuple<int, int>> swappable = SwappableQ(block);
+
+            Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
 
             // kies random 2 verwisselbare coordinaten
             Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
@@ -317,7 +328,7 @@ namespace sudoku
 
             // bepaal de nieuwe heuristische waarde
             int currentscore;
-            currentscore = Swap(coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
+            currentscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
 
             // bepaal de kans dat een hogere waarde toch wisselt, wissel met 1 - kans terug
             if (currentscore > score)
@@ -325,13 +336,29 @@ namespace sudoku
                 double chance = Math.Exp((score - currentscore) / c);
                 chance *= 100;
                 int rndchance = rnd.Next(100);
-                if (chance < rndchance) Swap(coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
+                if (chance < rndchance) Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
                 else score = currentscore;
             }
             else score = currentscore;
 
-            float a = 0.95f;
+            float a = 0.99f;
             if (score > 0) SimulatedAnnealingSearch(a * c);
+        }
+
+
+        //todo maak beter
+        private void printSudoku()
+        {
+            for(int y = 0; y < N; y++)
+            {
+                for (int x = 0; x < N; x++)
+                {
+                    Console.Write(values[y * N + x]);
+                }
+                Console.Write("\n");
+            }
+            Console.Write("\n");
+
         }
     }
 }
