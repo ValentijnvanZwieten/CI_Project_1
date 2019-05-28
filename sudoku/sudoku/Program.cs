@@ -24,32 +24,37 @@ namespace sudoku {
 
         // initialiseer de sudoku en pas een algoritme toe
         public Sudoku(string alg) {
-            // todo variabele N
-            N = 9; sN = (int)Math.Sqrt(N);
-            values = new int[N * N];
-            mask = new bool[N * N];
+            // todo efficientere mask
             Parse();
             score = Score();
             iteration = 0;
-
-            // todo parameters
-            if (alg == "ILS") IteratedLocalSearch(45, 100, 5);
+            
+            if (alg == "ILS") IteratedLocalSearch(18, 9, 100);
             else if (alg == "SAS") SimulatedAnnealingSearch();
             else Console.WriteLine("Unkown search algorithm");
+
             printSudoku();
         }
         // lees de sudoku uit een file
-        // todo meerdere sudokus
-        // todo verschillende groottes
-        // todo omgaan met lege regels
         private void Parse() {
-            Console.ReadLine();
+            // converteer een char[] naar een string[] waar elke string alleen het originele karakter bevat
+            string[] CharsToString(string s) {
+                string[] ret = new string[s.Length];
+                for (int i = 0; i < s.Length; i++) ret[i] = s[i].ToString();
+                return ret;
+            }
 
-            // loop door de individuele elementen van de puzzel
+            string[] line = Console.ReadLine().Split(' ');
+            if (line.Length == 1) line = CharsToString(line[0]);
+            N = line.Length;
+            sN = (int)Math.Sqrt(N);
+            values = new int[N * N];
+            mask = new bool[N * N];
+
             for (int y = 0; y < N; y++) {
                 for (int x = 0; x < N; x++) {
                     // pak de waarde van dit element
-                    int c = Console.Read() - 48;
+                    int c = int.Parse(line[x]);
                     // als deze niet leeg is ...
                     if (c != 0) {
                         // ... sla het dan op
@@ -58,7 +63,10 @@ namespace sudoku {
                     }
                 }
                 // ga naar de volgende regel
-                while (Console.Read() != '\n') ;
+                if (y < N - 1) {
+                    if (N > 9) line = Console.ReadLine().Split(' ');
+                    else line = CharsToString(Console.ReadLine());
+                }
             }
 
             List<int> present;
@@ -97,9 +105,14 @@ namespace sudoku {
         // print de sudoku
         private void printSudoku() {
             Console.WriteLine("Final score: {0}", score);
+
+            string div;
+            if (N > 10) div = " ";
+            else div = "";
+
             for (int y = 0; y < N; y++) {
                 for (int x = 0; x < N; x++) {
-                    Console.Write(values[y * N + x]);
+                    Console.Write("{0}{1}", values[y * N + x], div);
                 }
                 Console.Write("\n");
             }
@@ -215,7 +228,7 @@ namespace sudoku {
         /// ZOEKALGORITMES 
         ///
 
-        private void IteratedLocalSearch(int timeoutt, int walkcount, int S) {
+        private void IteratedLocalSearch(int timeoutt, int S, int walkcount) {
             IteratedLocalSearch(timeoutt, timeoutt, S, walkcount, int.MaxValue, null);
         }
         private void IteratedLocalSearch(int timeout, int timeoutt, int S, int walkcount, int topscore, int[] topvalues) {
@@ -225,35 +238,35 @@ namespace sudoku {
             Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
             // verwissel deze coordinaten en bepaal welke keuze het beste is
-            Tuple<int, int> current1, best1 = new Tuple<int, int>(-1, -1), best2 = new Tuple<int, int>(-1, -1);
-            int currentscore, bestscore = int.MaxValue;
+            Tuple<int, int> coords1, bestcoords1 = new Tuple<int, int>(-1, -1), bestcoords2 = new Tuple<int, int>(-1, -1);
+            int scoredelta, bestscoredelta = int.MaxValue;
             while (swappable.Count != 0) {
-                current1 = swappable.Dequeue();
+                coords1 = swappable.Dequeue();
 
-                foreach (Tuple<int, int> current2 in swappable) {
+                foreach (Tuple<int, int> coords2 in swappable) {
                     // bereken de score van de huidige wisseling ...
-                    currentscore = Swap(block, current1.Item1, current1.Item2, current2.Item1, current2.Item2);
+                    scoredelta = Swap(block, coords1.Item1, coords1.Item2, coords2.Item1, coords2.Item2);
 
                     // ... en onthoud deze als het de beste tot nu toe is
-                    if (currentscore < bestscore) {
-                        bestscore = currentscore;
-                        best1 = current1;
-                        best2 = current2;
+                    if (scoredelta < bestscoredelta) {
+                        bestscoredelta = scoredelta;
+                        bestcoords1 = coords1;
+                        bestcoords2 = coords2;
                     }
 
                     // zet de puzzel terug naar de beginstand
-                    Swap(block, current2.Item1, current2.Item2, current1.Item1, current1.Item2);
+                    Swap(block, coords2.Item1, coords2.Item2, coords1.Item1, coords1.Item2);
                 }
             }
 
-            // verklein het timeout als er geen verbetering is gevonden
-            if (bestscore == 0) --timeout;
-            else if (bestscore < 0) timeout = timeoutt;
+            // verklein het timeout als we op een plateau zijn
+            if (bestscoredelta == 0) --timeout;
+            else timeout = timeoutt;
 
             // als er een positieve wisseling is gevonden, voer deze dan uit en ga door
-            if (bestscore <= 0 && timeout > 0 && best1.Item1 != -1) {
-                Swap(block, best1.Item1, best1.Item2, best2.Item1, best2.Item2);
-                score += bestscore;
+            if (bestscoredelta <= 0 && timeout > 0 && bestcoords1.Item1 != -1) {
+                Swap(block, bestcoords1.Item1, bestcoords1.Item2, bestcoords2.Item1, bestcoords2.Item2);
+                score += bestscoredelta;
                 IteratedLocalSearch(timeout, timeoutt, S, walkcount, topscore, topvalues);
             }
             // zo niet, begin dan een random walk
@@ -265,16 +278,21 @@ namespace sudoku {
                 }
                 // stop als het walkbudget op is
                 if (walkcount-- == 0) {
-                    values = topvalues;
-                    score = topscore;
+                    // zet de sudoku op de beste die is gevonden
+                    if (topvalues != null) {
+                        values = topvalues;
+                        score = topscore;
+                    }
                     return;
                 }
                 Console.WriteLine("Running random walk... ({0} left)\n", walkcount);
 
-                List<Tuple<int, int>> s = SwappableL(block);
+                List<Tuple<int, int>> s;
                 int i1, i2;
-                // verwissel random waardes
+                // verwissel random waardes in een random blok
                 for (int i = 0; i < S; i++) {
+                    block = rnd.Next(N);
+                    s = SwappableL(block);
                     i1 = rnd.Next(s.Count);
                     i2 = rnd.Next(s.Count);
                     while (i2 == i1) i2 = rnd.Next(s.Count);
