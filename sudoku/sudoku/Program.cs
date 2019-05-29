@@ -29,7 +29,7 @@ namespace sudoku {
             score = Score();
             iteration = 0;
             
-            if (alg == "ILS") IteratedLocalSearch(18, 9, 100);
+            if (alg == "ILS") IteratedLocalSearch(32, 16, 100);
             else if (alg == "SAS") SimulatedAnnealingSearch();
             else Console.WriteLine("Unkown search algorithm");
 
