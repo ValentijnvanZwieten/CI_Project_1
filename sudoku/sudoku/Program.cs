@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace sudoku {
     class Program {
         static void Main(string[] args) {
-            if (args.Length > 0) new Sudoku(args[0]);
-            else { Console.WriteLine("Enter a search algorithm"); new Sudoku(Console.ReadLine()); }
+            if (args.Length == 0) throw new ArgumentException("Please enter a search algorithm and its parameters.");
+            else new Sudoku(args);
         }
     }
 
@@ -15,7 +15,7 @@ namespace sudoku {
         int[] values;
         bool[] mask;
         int score;
-        int iteration;
+        //int iteration;
 
         // algoritme-specifieke members
         int[] topvalues;
@@ -28,16 +28,47 @@ namespace sudoku {
         ///
 
         // initialiseer de sudoku en pas een algoritme toe
-        public Sudoku(string alg) {
-            // todo efficientere mask
+        public Sudoku(string[] arg) {
             Parse();
             score = Score();
             topscore = int.MaxValue;
-            iteration = 0;
+            //iteration = 0;
 
-            if (alg == "ILS") IteratedLocalSearch(9, 9, 25);
-            else if (alg == "SAS") SimulatedAnnealingSearch(0.5f, 0.999f);
-            else { Console.WriteLine("Unkown search algorithm"); return; }
+            // voer de algoritmes uit met de gegeven waardes
+            string alg = arg[0];
+            if (alg == "ILS") {
+                int arg1;
+                int arg2;
+                int arg3;
+
+                try {
+                    arg1 = int.Parse(arg[1]);
+                    arg2 = int.Parse(arg[2]);
+                    arg3 = int.Parse(arg[3]);
+                }
+                catch (Exception) {
+                    Console.WriteLine("Invalid arguments. Check the readme for instructions.");
+                    return;
+                }
+
+                Console.WriteLine("Executing ILS with TimeOut={0}, S={1}, WalkCount={2}...", arg1, arg2, arg3);
+                IteratedLocalSearch(arg1, arg2, arg3); // 9, 9, 25
+            } else if (alg == "SAS") {
+                float arg1;
+                float arg2;
+
+                try {
+                    arg1 = float.Parse(arg[1]);
+                    arg2 = float.Parse(arg[2]);
+                }
+                catch (Exception) {
+                    Console.WriteLine("Invalid arguments. Check the readme for instructions.");
+                    return;
+                }
+
+                Console.WriteLine("Executing SAS with c={0}, a={1}...", arg1, arg2);
+                SimulatedAnnealingSearch(arg1, arg2); // 0.5f, 0.999f
+            } else { Console.WriteLine("Unkown search algorithm."); return; }
 
             printSudoku();
         }
@@ -312,7 +343,7 @@ namespace sudoku {
                 int block = rnd.Next(N);
                 Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
-                Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
+                //Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
 
                 // kies random 2 verwisselbare coordinaten
                 Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
