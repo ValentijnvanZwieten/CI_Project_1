@@ -33,7 +33,8 @@ namespace sudoku {
             else if (alg == "SAS") SimulatedAnnealingSearch();
             else Console.WriteLine("Unkown search algorithm");
 
-            printSudoku();
+                 printSudoku();
+
         }
         // lees de sudoku uit een file
         private void Parse() {
@@ -301,11 +302,12 @@ namespace sudoku {
                 IteratedLocalSearch(timeoutt, timeoutt, S, walkcount, topscore, topvalues);
             }
         }
-        //todo fix cooling schedule
+
         private void SimulatedAnnealingSearch() {
-            float c = 0.5f;
-            //ga door tot de sudoku is opgelost
-            while (score > 0) {
+            // de waardes van het koelschema
+            float c = 0.5f, a = 0.999f;
+
+            while (score > 0 && c > 0.001) {
                 int block = rnd.Next(N);
                 Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
@@ -313,30 +315,33 @@ namespace sudoku {
 
                 // kies random 2 verwisselbare coordinaten
                 Tuple<int, int> coordinate1 = new Tuple<int, int>(-1, -1), coordinate2 = new Tuple<int, int>(-1, -1);
+
                 int rndnr1 = rnd.Next(swappable.Count);
-                int rndnr2 = rnd.Next(swappable.Count - 1);
                 for (int i = 0; i <= rndnr1; i++) {
                     coordinate1 = swappable.Dequeue();
                     if (i < rndnr1) swappable.Enqueue(coordinate1);
                 }
+                int rndnr2 = rnd.Next(swappable.Count);
                 for (int i = 0; i <= rndnr2; i++) {
                     coordinate2 = swappable.Dequeue();
                 }
 
-                // bepaal de nieuwe heuristische waarde
+                // doe de random swap en bepaal de nieuwe waarde
                 int currentscore;
                 currentscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
 
-                // bepaal de kans dat een hogere waarde toch wisselt, wissel met 1 - kans terug
+                // bepaal de kans dat een hogere waarde toch wisselt
                 if (currentscore > score) {
                     double chance = Math.Exp((score - currentscore) / c);
                     chance *= 100;
                     int rndchance = rnd.Next(100);
+
+                    //  wissel met 1 - kans terug
                     if (chance < rndchance) Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
                     else score = currentscore;
                 } else score = currentscore;
 
-                float a = 0.99f;
+                // verlaag de kans dat een slechtere waarde toch wisselt
                 c *= a;
             }
         }
