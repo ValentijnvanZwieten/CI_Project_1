@@ -10,11 +10,16 @@ namespace sudoku {
     }
 
     class Sudoku {
+        // algemene members
         int N, sN;
         int[] values;
         bool[] mask;
         int score;
         int iteration;
+
+        // algoritme-specifieke members
+        int[] topvalues;
+        int topscore;
 
         Random rnd = new Random();
 
@@ -27,14 +32,14 @@ namespace sudoku {
             // todo efficientere mask
             Parse();
             score = Score();
+            topscore = int.MaxValue;
             iteration = 0;
-            
-            if (alg == "ILS") IteratedLocalSearch(32, 16, 100);
-            else if (alg == "SAS") SimulatedAnnealingSearch();
-            else Console.WriteLine("Unkown search algorithm");
 
-                 printSudoku();
+            if (alg == "ILS") IteratedLocalSearch(9, 9, 25);
+            else if (alg == "SAS") SimulatedAnnealingSearch(0.5f, 0.999f);
+            else { Console.WriteLine("Unkown search algorithm"); return; }
 
+            printSudoku();
         }
         // lees de sudoku uit een file
         private void Parse() {
@@ -117,7 +122,6 @@ namespace sudoku {
                 }
                 Console.Write("\n");
             }
-            Console.Write("\n");
         }
         // lees de waarde van een coordinaat
         private T GetValue<T>(int block, int x, int y, T[] a) {
@@ -230,10 +234,10 @@ namespace sudoku {
         ///
 
         private void IteratedLocalSearch(int timeoutt, int S, int walkcount) {
-            IteratedLocalSearch(timeoutt, timeoutt, S, walkcount, int.MaxValue, null);
+            IteratedLocalSearch(timeoutt, timeoutt, S, walkcount);
         }
-        private void IteratedLocalSearch(int timeout, int timeoutt, int S, int walkcount, int topscore, int[] topvalues) {
-            Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
+        private void IteratedLocalSearch(int timeout, int timeoutt, int S, int walkcount) {
+            // Console.WriteLine("Iteration: {0}\nScore: {1}\n", iteration++, score);
 
             int block = rnd.Next(N);
             Queue<Tuple<int, int>> swappable = SwappableQ(block);
@@ -268,7 +272,7 @@ namespace sudoku {
             if (bestscoredelta <= 0 && timeout > 0 && bestcoords1.Item1 != -1) {
                 Swap(block, bestcoords1.Item1, bestcoords1.Item2, bestcoords2.Item1, bestcoords2.Item2);
                 score += bestscoredelta;
-                IteratedLocalSearch(timeout, timeoutt, S, walkcount, topscore, topvalues);
+                IteratedLocalSearch(timeout, timeoutt, S, walkcount);
             }
             // zo niet, begin dan een random walk
             else {
@@ -286,7 +290,7 @@ namespace sudoku {
                     }
                     return;
                 }
-                Console.WriteLine("Running random walk... ({0} left)\n", walkcount);
+                // Console.WriteLine("Running random walk... ({0} left)\n", walkcount);
 
                 List<Tuple<int, int>> s;
                 int i1, i2;
@@ -299,14 +303,11 @@ namespace sudoku {
                     while (i2 == i1) i2 = rnd.Next(s.Count);
                     score += Swap(block, s[i1].Item1, s[i1].Item2, s[i2].Item1, s[i2].Item2);
                 }
-                IteratedLocalSearch(timeoutt, timeoutt, S, walkcount, topscore, topvalues);
+                IteratedLocalSearch(timeoutt, timeoutt, S, walkcount);
             }
         }
 
-        private void SimulatedAnnealingSearch() {
-            // de waardes van het koelschema
-            float c = 0.5f, a = 0.999f;
-
+        private void SimulatedAnnealingSearch(float c, float a) {
             while (score > 0 && c > 0.001) {
                 int block = rnd.Next(N);
                 Queue<Tuple<int, int>> swappable = SwappableQ(block);
