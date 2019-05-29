@@ -30,10 +30,9 @@ namespace sudoku {
             iteration = 0;
             
             if (alg == "ILS") IteratedLocalSearch(18, 9, 100);
-            else if (alg == "SAS") SimulatedAnnealingSearch();
+            else if (alg == "SAS") SimulatedAnnealingSearch(0.5f, 0.999f);
             else Console.WriteLine("Unkown search algorithm");
-
-                 printSudoku();
+            printSudoku();
 
         }
         // lees de sudoku uit een file
@@ -303,11 +302,9 @@ namespace sudoku {
             }
         }
 
-        private void SimulatedAnnealingSearch() {
-            // de waardes van het koelschema
-            float c = 0.5f, a = 0.999f;
-
-            while (score > 0 && c > 0.001) {
+        private void SimulatedAnnealingSearch(float c, float a) {
+  
+            while (score > 0 && c > 0.01) {
                 int block = rnd.Next(N);
                 Queue<Tuple<int, int>> swappable = SwappableQ(block);
 
@@ -327,19 +324,19 @@ namespace sudoku {
                 }
 
                 // doe de random swap en bepaal de nieuwe waarde
-                int currentscore;
-                currentscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
+                int newscore;
+                newscore = Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2) + score;
 
                 // bepaal de kans dat een hogere waarde toch wisselt
-                if (currentscore > score) {
-                    double chance = Math.Exp((score - currentscore) / c);
-                    chance *= 100;
-                    int rndchance = rnd.Next(100);
+                if (newscore > score) {
+                    double chance = Math.Exp((score - newscore) / c);
+                    chance *= 100000;
+                    int rndchance = rnd.Next(100000);
 
                     //  wissel met 1 - kans terug
                     if (chance < rndchance) Swap(block, coordinate1.Item1, coordinate1.Item2, coordinate2.Item1, coordinate2.Item2);
-                    else score = currentscore;
-                } else score = currentscore;
+                    else score = newscore;
+                } else score = newscore;
 
                 // verlaag de kans dat een slechtere waarde toch wisselt
                 c *= a;
