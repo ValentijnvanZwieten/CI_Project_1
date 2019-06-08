@@ -8,3 +8,5 @@ Waar [Algoritme] een uit ILS of SAS is, en [Sudoku-bestand] de naam van het text
 Enkele voorbeelden:
 | sudoku.exe ILS 9 9 25 < 9x9.txt
 | sudoku.exe SAS 0.5 0.999 < 16x16.txt
+
+LET OP! Het gebruik van een '.' of een ',' voor floats (zoals vereist bij SAS) is bij ons inconsistent. Controleer dus of de opgegeven waardes overeenkomen met de geprinte waardes (eg 0.999 wordt 999).
