@@ -94,18 +94,26 @@ namespace sudoku {
             return new Tuple<int, int>(i % N, i / N);
         }
         // bepaal of het gegeven coordinaat de oplossing illegaal maakt
-        // todo fix
-        private bool Legal(int row, int column) {
-            int value = values[ConvertCoord(row, column)];
+        private bool Legal(int column, int row) {
+            int value = values[ConvertCoord(column, row)];
 
+            // kijk of de rij / kolom alleen unieke getallen heeft
             for (int x = 0; x < N; x++) if (x != column && values[ConvertCoord(x, row)] == value) return false;
             for (int y = 0; y < N; y++) if (y != row && values[ConvertCoord(column, y)] == value) return false;
+
+            // kijk of het blok alleen unieke getallen heeft
+            int by = row - row % sN; int bx = column - column % sN;
+            for (int y = by; y < by + sN; y++) for (int x = bx; x < bx + sN ; x++) if (x != column && y != row && values[ConvertCoord(x, y)] == value) return false;
+
             return true;
         }
         #endregion
 
         #region ALGORITMES
-        private void ChronologicalBacktracking(int i = 0) {
+        private bool ChronologicalBacktracking(int i = 0) {
+            // stop als de hele sudoku bekeken is
+            if (i >= free.Count) return true;
+
             int value = 1;
             Tuple<int, int> coord = ConvertCoord(free[i]);
 
@@ -114,10 +122,14 @@ namespace sudoku {
                 values[free[i]] = value;
 
                 // kijk of deze legaal is, en ga in dit geval door
-                if (Legal(coord.Item1, coord.Item2)) ChronologicalBacktracking(i + 1);
+                if (Legal(coord.Item1, coord.Item2) && ChronologicalBacktracking(i + 1)) return true;
                 // probeer anders andere waardes
-                else value++;
+                value++;
             }
+
+            // maak het vakje weer leeg als geen correcte invulling is gevonden
+            values[free[i]] = 0;
+            return false;
         }
 
         private void ForwardCheckingOrdered() {
