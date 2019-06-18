@@ -121,27 +121,37 @@ namespace sudoku {
 
         #region VALUE GENERATORS
         interface ValueGenerator {
-            bool Done();
+            int Index();
             int Value();
-            ValueGenerator Next(int i);
+            bool Searching();
+            bool Done();
+            ValueGenerator Next();
         }
         class Chronological : ValueGenerator {
             Sudoku sudoku;
             int value;
+            int index;
 
-            public Chronological(Sudoku s) {
+            public Chronological(Sudoku s, int i) {
                 sudoku = s;
                 value = 1;
+                index = i;
             }
-
-            public bool Done() {
-                return value > sudoku.N;
+            
+            public int Index() {
+                return index;
             }
             public int Value() {
                 return value++;
             }
-            public ValueGenerator Next(int i) {
-                return new Chronological(sudoku);
+            public bool Searching() {
+                return value <= sudoku.N;
+            }
+            public bool Done() {
+                return index >= sudoku.free.Count;
+            }
+            public ValueGenerator Next() {
+                return new Chronological(sudoku, index + 1);
             }
         }
         class Domain : ValueGenerator {
@@ -154,22 +164,28 @@ namespace sudoku {
                 domain_index = 0;
                 index = i;
             }
-
-            public bool Done() {
-                return domain_index > sudoku.domains[index].Count;
+            
+            public int Index() {
+                return index;
             }
             public int Value() {
                 return sudoku.domains[index][domain_index];
             }
-            public ValueGenerator Next(int i) {
-                return new Domain(sudoku, i++);
+            public bool Searching() {
+                return domain_index <= sudoku.domains[index].Count;
+            }
+            public bool Done() {
+                return true; // todo
+            }
+            public ValueGenerator Next() {
+                return new Domain(sudoku, index + 1);
             }
         }
         #endregion VALUE GENERATORS
 
         #region ALGORITMES
         private bool ChronologicalBacktracking(int i = 0) {
-            return CSP(new Chronological(this), Legal);
+            return CSP(new Chronological(this, i), Legal);
         }
         private bool ForwardCheckingOrdered(int i = 0) {
             return CSP(new Domain(this, i), UpdateConstraints);
@@ -178,20 +194,21 @@ namespace sudoku {
             return false; // todo
         }
 
-        private bool CSP(ValueGenerator vg, Func<int, int, bool> constraint_check, int i = 0) {
+        private bool CSP(ValueGenerator vg, Func<int, int, bool> constraint_check) {
             //Console.WriteLine("Filling in space {0} / {1}", i, free.Count);
 
             // stop als de hele sudoku bekeken is
-            if (i >= free.Count) return true;
-            
+            if (vg.Done()) return true;
+
+            int i = vg.Index();
             Tuple<int, int> coord = ConvertCoord(free[i]);
 
-            while (!vg.Done()) {
+            while (vg.Searching()) {
                 // verander het eerste lege vakje naar de eerste beschikbare waarde
                 values[free[i]] = vg.Value();
 
                 // kijk of deze legaal is, en ga in dit geval door
-                if (constraint_check(coord.Item1, coord.Item2) && CSP(vg.Next(i), constraint_check, i + 1)) return true;
+                if (constraint_check(coord.Item1, coord.Item2) && CSP(vg.Next(), constraint_check)) return true;
             }
 
             // maak het vakje weer leeg als geen correcte invulling is gevonden
