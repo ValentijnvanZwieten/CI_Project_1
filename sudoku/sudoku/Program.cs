@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace sudoku {
     class Program {
         static void Main(string[] args) {
-            if (args.Length == 0) throw new ArgumentException("Please enter a search algorithm.");
+            if (args.Length == 0) throw new ArgumentException("Please supply a search algorithm on execution.");
             else new Sudoku(args[0]);
         }
     }
@@ -26,9 +26,11 @@ namespace sudoku {
                     ChronologicalBacktracking();
                     break;
                 case "FCO":
+                    UpdateConstraints();
                     ForwardCheckingOrdered();
                     break;
                 case "FCH":
+                    UpdateConstraints();
                     ForwardCheckingHeuristic();
                     break;
                 default:
@@ -127,6 +129,7 @@ namespace sudoku {
             bool Done();
             ValueGenerator Next();
         }
+        // todo generalise domain-based
         class Chronological : ValueGenerator {
             Sudoku sudoku;
             int value;
@@ -137,7 +140,7 @@ namespace sudoku {
                 value = 1;
                 index = i;
             }
-            
+
             public int Index() {
                 return index;
             }
@@ -154,17 +157,44 @@ namespace sudoku {
                 return new Chronological(sudoku, index + 1);
             }
         }
-        class Domain : ValueGenerator {
+        class DomainOrdered : ValueGenerator {
             Sudoku sudoku;
             int domain_index;
             int index;
 
-            public Domain(Sudoku s, int i) {
+            public DomainOrdered(Sudoku s, int i) {
                 sudoku = s;
                 domain_index = 0;
                 index = i;
             }
-            
+
+            public int Index() {
+                return index;
+            }
+            public int Value() {
+                return sudoku.domains[index][domain_index];
+            }
+            public bool Searching() {
+                return domain_index <= sudoku.domains[index].Count;
+            }
+            public bool Done() {
+                return index >= sudoku.free.Count;
+            }
+            public ValueGenerator Next() {
+                return new DomainOrdered(sudoku, index + 1);
+            }
+        }
+        class DomainHeuristic : ValueGenerator {
+            Sudoku sudoku;
+            int domain_index;
+            int index;
+
+            public DomainHeuristic(Sudoku s) {
+                sudoku = s;
+                domain_index = 0;
+                index = 0; // todo
+            }
+
             public int Index() {
                 return index;
             }
@@ -178,7 +208,7 @@ namespace sudoku {
                 return true; // todo
             }
             public ValueGenerator Next() {
-                return new Domain(sudoku, index + 1);
+                return new DomainHeuristic(sudoku);
             }
         }
         #endregion VALUE GENERATORS
@@ -188,14 +218,14 @@ namespace sudoku {
             return CSP(new Chronological(this, i), Legal);
         }
         private bool ForwardCheckingOrdered(int i = 0) {
-            return CSP(new Domain(this, i), UpdateConstraints);
+            return CSP(new DomainOrdered(this, i), UpdateConstraints);
         }
         private bool ForwardCheckingHeuristic() {
-            return false; // todo
+            return CSP(new DomainHeuristic(this), UpdateConstraints);
         }
 
         private bool CSP(ValueGenerator vg, Func<int, int, bool> constraint_check) {
-            //Console.WriteLine("Filling in space {0} / {1}", i, free.Count);
+            //Console.WriteLine("Filling in space {0}", i);
 
             // stop als de hele sudoku bekeken is
             if (vg.Done()) return true;
@@ -211,7 +241,7 @@ namespace sudoku {
                 if (constraint_check(coord.Item1, coord.Item2) && CSP(vg.Next(), constraint_check)) return true;
             }
 
-            // maak het vakje weer leeg als geen correcte invulling is gevonden
+            // maak het vakje weer leeg als er geen correcte invulling is gevonden
             values[free[i]] = 0;
             return false;
         }
