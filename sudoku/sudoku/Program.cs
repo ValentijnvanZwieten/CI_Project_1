@@ -1,8 +1,7 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 
-namespace sudoku {
+namespace Sudoku {
     class Exec {
         static void Main(string[] args) {
             if (args.Length == 0) throw new ArgumentException("Please supply a search algorithm on execution.");
@@ -13,14 +12,12 @@ namespace sudoku {
             // voer het gevraagde algoritme uit
             switch (args[0]) {
                 case "CBT":
-                    new Backtracking(s).Solve();
+                    new NaiveBacktracking(s).Solve();
                     break;
                 case "FCO":
-                    //InitConstraints();
                     new Ordered(s).Solve();
                     break;
                 case "FCH":
-                    //InitConstraints();
                     new Heuristic(s).Solve();
                     break;
                 default:
@@ -37,7 +34,6 @@ namespace sudoku {
         public int N, sN;
         public int[] values;
         public List<int> free;
-        public List<List<int>> domains;
 
         #region INITIALISERING
         // lees de sudoku uit een file
@@ -73,15 +69,6 @@ namespace sudoku {
 
             }
         }
-        // todo fix
-        /*
-        private void InitConstraints() {
-            foreach (int i in free) {
-                domains.Add(new List<int>().AddRange(Enumerable.Range(1, N)));
-                UpdateConstraints(i);
-            }
-        }
-        */
         #endregion
 
         #region HELPERS
@@ -108,18 +95,19 @@ namespace sudoku {
         }
         #endregion
 
-        #region PREDIKAAT-CHECKER
-        // bepaal of het gegeven coordinaat de oplossing illegaal maakt volgens het bijgeleverde predikaat
-        public bool CellPredicate(int column, int row, Func<int, int, int, bool> predicate) {
+        #region DOMEIN-FUNCTIE
+        // voer een geleverde functie uit over (de waarde van) de rij / de kolom / het blok van een bepaald coordinaat
+        // todo cleanup conversion / passed variables
+        public bool DomainFunc(int column, int row, Func<int, int, int, bool> function) {
             int value = values[ConvertCoord(column, row)];
 
-            // check de rij / kolom
-            for (int x = 0; x < N; x++) if (x != column && predicate(x, row, value)) return false;
-            for (int y = 0; y < N; y++) if (y != row && predicate(column, y, value)) return false;
+            // ga door de rij en de kolom
+            for (int x = 0; x < N; x++) if (x != column && function(x, row, value)) return false;
+            for (int y = 0; y < N; y++) if (y != row && function(column, y, value)) return false;
 
-            // check het blok
+            // ga door het blok
             int by = row - row % sN; int bx = column - column % sN;
-            for (int y = by; y < by + sN; y++) for (int x = bx; x < bx + sN; x++) if (x != column && y != row && predicate(x, y, value)) return false;
+            for (int y = by; y < by + sN; y++) for (int x = bx; x < bx + sN; x++) if (x != column && y != row && function(x, y, value)) return false;
 
             return true;
         }
@@ -131,114 +119,178 @@ namespace sudoku {
         protected Sudoku sudoku;
         protected int index;
 
-        // geef de waarde die als volgende geprobeert moet worden
-        abstract protected int Value();
-        // geef aan of er nog gezocht wordt, of alle waardes al zijn geprobeerd
-        abstract protected bool Searching();
         // geef aan of de sudoku klaar is, of nog ingevuld wordt
-        abstract protected bool Done();
-        // beoordeel de geprobeerde waarde
-        abstract protected bool ConstraintCheck(int column, int row);
+        protected abstract bool Done { get; }
+        // geef aan of er nog gezocht wordt, of alle waardes al zijn geprobeerd
+        protected abstract bool Searching { get; }
         // lever de volgende waarde-zoekende instantie op
-        abstract protected SudokuSolver Next();
+        protected abstract SudokuSolver Next { get; }
+
+        // geef de waarde die als volgende geprobeert moet worden
+        protected abstract void TryValue();
+        // beoordeel de geprobeerde waarde
+        protected abstract bool ConstraintCheck(int column, int row);
 
         // vul de sudoku cel-voor-cel in aan de hand van de bovenstaande hulpmethoden
         public bool Solve() {
             //Console.WriteLine("Filling in space {0}", i);
 
             // stop als de hele sudoku bekeken is
-            if (Done())
-                return true;
+            if (Done) return true;
 
             Tuple<int, int> coord = sudoku.ConvertCoord(sudoku.free[index]);
 
-            while (Searching()) {
+            while (Searching) {
                 // verander het eerste lege vakje naar de eerste beschikbare waarde
-                sudoku.values[sudoku.free[index]] = Value();
+                TryValue();
 
                 // kijk of deze legaal is, en ga in dit geval door
-                if (ConstraintCheck(coord.Item1, coord.Item2) && Next().Solve()) return true;
+                if (ConstraintCheck(coord.Item1, coord.Item2) && Next.Solve()) return true;
+                // haal de invulling anders weg
+                Reset();
             }
 
-            // maak het vakje weer leeg als er geen correcte invulling is gevonden
-            sudoku.values[sudoku.free[index]] = 0;
             return false;
+        }
+        // zet de sudoku terug als alle mogelijke waardes illegaal zijn
+        protected virtual void Reset() {
+            sudoku.values[sudoku.free[index]] = 0;
         }
     }
 
     #region BACKTRACKING
-    class Backtracking : SudokuSolver {
+    sealed class NaiveBacktracking : SudokuSolver {
         int value;
 
-        public Backtracking(Sudoku s, int i = 0) {
+        public NaiveBacktracking(Sudoku s, int i = 0) {
             sudoku = s;
             value = 1;
             index = i;
         }
 
-        override protected int Value() {
-            return value++;
+        protected override bool Done =>
+            index >= sudoku.free.Count;
+        protected override bool Searching =>
+            value <= sudoku.N;
+        protected override SudokuSolver Next =>
+            new NaiveBacktracking(sudoku, index + 1);
+
+        protected override void TryValue() {
+            sudoku.values[sudoku.free[index]] = value++;
         }
-        override protected bool Searching() {
-            return value <= sudoku.N;
-        }
-        override protected bool Done() {
-            return index >= sudoku.free.Count;
-        }
-        override protected bool ConstraintCheck(int column, int row) {
+        protected override bool ConstraintCheck(int column, int row) {
             // kijk of de rij / de kolom / het blok geen duplicaten bevat
-            return sudoku.CellPredicate(column, row, (x, y, v) => sudoku.values[sudoku.ConvertCoord(x, y)] == v);
-        }
-        override protected SudokuSolver Next() {
-            return new Backtracking(sudoku, index + 1);
+            return sudoku.DomainFunc(column, row, (x, y, v) => sudoku.values[sudoku.ConvertCoord(x, y)] == v);
         }
     }
-    #endregion BACKTRACKING
+    #endregion
 
     #region FORWARD CHECKING
     abstract class ForwardChecking : SudokuSolver {
         protected int domain_index;
+        protected List<List<int>> domains;
 
-        sealed override protected int Value() {
-            return sudoku.domains[index][domain_index];
-        }
-        sealed override protected bool Searching() {
-            return domain_index <= sudoku.domains[index].Count;
-        }
-        sealed override protected bool ConstraintCheck(int column, int row) {
-            // kijk of de rij / de kolom / het blok geen lege domeinen bevat
-            return sudoku.CellPredicate(column, row, (x, y, v) => sudoku.values[sudoku.ConvertCoord(x, y)] == v);
-        }
-    }
-    class Ordered : ForwardChecking {
-        public Ordered(Sudoku s, int i = 0) {
+        protected int value;
+        protected List<int> domains_changed;
+
+        protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) {
             sudoku = s;
             domain_index = 0;
+            domains = d;
             index = i;
+
+            if (d == null) InitDomains();
+            domains_changed = new List<int>();
         }
-        
-        override protected bool Done() {
-            return index >= sudoku.free.Count;
+
+        // initialiseer alle domeinen
+        protected void InitDomains() {
+            domains = new List<List<int>>();
+
+            Tuple<int, int> coord;
+            List<int> domain;
+
+            for (int i = 0; i < sudoku.free.Count; i++) {
+                coord = sudoku.ConvertCoord(sudoku.free[i]);
+
+                domain = new List<int>();
+                for (int v = 0; v <= sudoku.N; v++) domain.Add(v);
+
+                sudoku.DomainFunc(coord.Item1, coord.Item2, (x, y, v) => {
+                    domain.Remove(sudoku.values[sudoku.ConvertCoord(x, y)]);
+                    return false;
+                });
+
+                domains.Add(domain);
+            }
         }
-        override protected SudokuSolver Next() {
-            return new Ordered(sudoku, index + 1);
+        // update een enkel domein
+        protected void StrengthenDomains(int i) {
+            Tuple<int, int> coord = sudoku.ConvertCoord(sudoku.free[i]);
+            int free_index;
+
+            sudoku.DomainFunc(coord.Item1, coord.Item2, (x, y, v) => {
+                free_index = sudoku.free.IndexOf(sudoku.ConvertCoord(x, y));
+                if (free_index == -1) return false;
+
+                if (domains[free_index].Remove(v)) domains_changed.Add(free_index);
+                return false;
+            });
+        }
+        protected void RollbackDomains() {
+            foreach (int free_index in domains_changed) domains[free_index].Add(value);
+            domains_changed = new List<int>();
+        }
+
+        protected sealed override bool Searching =>
+            domain_index < domains[index].Count;
+
+        protected sealed override void TryValue() {
+            value = domains[index][domain_index++];
+            sudoku.values[sudoku.free[index]] = value;
+            StrengthenDomains(index);
+        }
+        protected sealed override bool ConstraintCheck(int column, int row) {
+            // kijk of de rij / de kolom / het blok geen lege domeinen bevat
+            int free_index;
+
+            return sudoku.DomainFunc(column, row, (x, y, v) => {
+                free_index = sudoku.free.IndexOf(sudoku.ConvertCoord(x, y));
+                if (free_index == -1) return false;
+
+                return domains[free_index].Count == 0;
+            });
+        }
+        protected sealed override void Reset() {
+            base.Reset();
+            RollbackDomains();
         }
     }
-    // todo
-    class Heuristic : ForwardChecking {
-        public Heuristic(Sudoku s) {
-            sudoku = s;
-            domain_index = 0;
-            index = 0; // todo
-        }
-        
-        override protected bool Done() {
-            return true; // todo
-        }
-        override protected SudokuSolver Next() {
-            return new Heuristic(sudoku);
-        }
+    sealed class Ordered : ForwardChecking {
+        public Ordered(Sudoku s, int i = 0, List<List<int>> d = null) : base(s, i, d) { }
+
+        protected override bool Done =>
+            index >= sudoku.free.Count;
+        protected override SudokuSolver Next =>
+            new Ordered(sudoku, index + 1, domains);
     }
-    #endregion FORWARD CHECKING
-    #endregion SOLVERS
+    // todo fch
+    sealed class Heuristic : ForwardChecking {
+        private int count;
+
+        public Heuristic(Sudoku s, int i = 0, List<List<int>> d = null, int c = 0) : base(s, i, d) {
+            count = c;
+        }
+
+        private int NextIndex() {
+            return 0; // todo
+        }
+
+        protected override bool Done =>
+            count >= sudoku.free.Count;
+        protected override SudokuSolver Next =>
+            new Heuristic(sudoku, NextIndex(), domains, count + 1);
+    }
+    #endregion
+    #endregion
 }
