@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 
 namespace Sudoku {
@@ -6,27 +7,33 @@ namespace Sudoku {
         static void Main(string[] args) {
             if (args.Length == 0) throw new ArgumentException("Please supply a search algorithm on execution.");
 
-            // maak een nieuwe sudoku
-            Sudoku s = new Sudoku();
-
-            // voer het gevraagde algoritme uit
+            // maak een nieuwe sudoku en sudoku-oplosser
+            Sudoku sudoku = new Sudoku();
+            SudokuSolver solver;
+            
             switch (args[0]) {
                 case "CBT":
-                    new NaiveBacktracking(s).Solve();
+                    solver = new NaiveBacktracking(sudoku);
                     break;
                 case "FCO":
-                    new Ordered(s).Solve();
+                    solver = new Ordered(sudoku);
                     break;
                 case "FCH":
-                    new Heuristic(s).Solve();
+                    solver = new Heuristic(sudoku);
                     break;
                 default:
                     Console.WriteLine("Unkown search algorithm.");
                     return;
             }
 
-            // toon de opgeloste sudoku
-            Console.WriteLine(s);
+            // los de sukodu op en toon deze, met de besteedde tijd, in de console
+            Stopwatch stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+            solver.Solve();
+            stopwatch.Stop();
+
+            Console.WriteLine("Sudoku solved in {0} ticks ({1} milliseconds).\n\n{2}", stopwatch.ElapsedTicks, stopwatch.ElapsedMilliseconds, sudoku);
         }
     }
 
@@ -97,7 +104,6 @@ namespace Sudoku {
 
         #region DOMEIN-FUNCTIE
         // voer een geleverde functie uit over (de waarde van) de rij / de kolom / het blok van een bepaald coordinaat
-        // todo cleanup conversion / passed variables
         public bool DomainFunc(int column, int row, Func<int, int, int, bool> function) {
             int value = values[ConvertCoord(column, row)];
 
@@ -133,7 +139,7 @@ namespace Sudoku {
 
         // vul de sudoku cel-voor-cel in aan de hand van de bovenstaande hulpmethoden
         public bool Solve() {
-            //Console.WriteLine("Filling in space {0}", i);
+            //Console.WriteLine("Filling in space {0}/{1}", index, sudoku.free.Count);
 
             // stop als de hele sudoku bekeken is
             if (Done) return true;
@@ -232,9 +238,9 @@ namespace Sudoku {
             sudoku.DomainFunc(coord.Item1, coord.Item2, (x, y, v) => {
                 free_index = sudoku.free.IndexOf(sudoku.ConvertCoord(x, y));
                 if (free_index == -1) return false;
-
                 if (domains[free_index].Remove(v)) domains_changed.Add(free_index);
-                return false;
+
+                return domains[free_index].Count == 0;
             });
         }
         protected void RollbackDomains() {
@@ -245,7 +251,7 @@ namespace Sudoku {
         protected sealed override bool Searching =>
             domain_index < domains[index].Count;
 
-        protected sealed override void TryValue() {
+        protected override void TryValue() {
             value = domains[index][domain_index++];
             sudoku.values[sudoku.free[index]] = value;
             StrengthenDomains(index);
@@ -261,7 +267,7 @@ namespace Sudoku {
                 return domains[free_index].Count == 0;
             });
         }
-        protected sealed override void Reset() {
+        protected override void Reset() {
             base.Reset();
             RollbackDomains();
         }
@@ -274,22 +280,34 @@ namespace Sudoku {
         protected override SudokuSolver Next =>
             new Ordered(sudoku, index + 1, domains);
     }
-    // todo fch
     sealed class Heuristic : ForwardChecking {
-        private int count;
+        List<int> passed;
 
-        public Heuristic(Sudoku s, int i = 0, List<List<int>> d = null, int c = 0) : base(s, i, d) {
-            count = c;
+        public Heuristic(Sudoku s, int i = 0, List<List<int>> d = null, List<int> p = null) : base(s, i, d) {
+            if (p == null) passed = new List<int>();
+            else passed = p;
         }
 
         private int NextIndex() {
-            return 0; // todo
+            passed.Add(index);
+            int domain = -1, smallest = int.MaxValue;
+
+            for (int i = 0; i < domains.Count; i++)
+                if (domains[i].Count < smallest && !passed.Contains(i)) {
+                    domain = i; smallest = domains[i].Count;
+                }
+
+            return domain;
+        }
+        protected override void Reset() {
+            base.Reset();
+            passed.Remove(index);
         }
 
         protected override bool Done =>
-            count >= sudoku.free.Count;
+            passed.Count >= sudoku.free.Count;
         protected override SudokuSolver Next =>
-            new Heuristic(sudoku, NextIndex(), domains, count + 1);
+            new Heuristic(sudoku, NextIndex(), domains, passed);
     }
     #endregion
     #endregion
