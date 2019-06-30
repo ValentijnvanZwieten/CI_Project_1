@@ -1,126 +1,7 @@
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
 
-namespace Sudoku {
-    class Exec {
-        static void Main(string[] args) {
-            if (args.Length == 0) throw new ArgumentException("Please supply a search algorithm on execution.");
-
-            // maak een nieuwe sudoku en sudoku-oplosser
-            Sudoku sudoku = new Sudoku();
-            SudokuSolver solver;
-            
-            switch (args[0]) {
-                case "CBT":
-                    solver = new NaiveBacktracking(sudoku);
-                    break;
-                case "FCO":
-                    solver = new Ordered(sudoku);
-                    break;
-                case "FCH":
-                    solver = new Heuristic(sudoku);
-                    break;
-                default:
-                    Console.WriteLine("Unkown search algorithm.");
-                    return;
-            }
-
-            // los de sukodu op en toon deze, met de besteedde tijd, in de console
-            Stopwatch stopwatch = new Stopwatch();
-
-            stopwatch.Start();
-            solver.Solve();
-            stopwatch.Stop();
-
-            Console.WriteLine("Sudoku solved in {0} ticks ({1} milliseconds).\n\n{2}", stopwatch.ElapsedTicks, stopwatch.ElapsedMilliseconds, sudoku);
-        }
-    }
-
-    class Sudoku {
-        public int N, sN;
-        public int[] values;
-        public List<int> free;
-
-        #region INITIALISERING
-        // lees de sudoku uit een file
-        public Sudoku() {
-            // converteer een char[] naar een string[] waar elke string alleen het originele karakter bevat
-            string[] CharsToString(string s) {
-                string[] ret = new string[s.Length];
-                for (int i = 0; i < s.Length; i++) ret[i] = s[i].ToString();
-                return ret;
-            }
-
-            string[] line = Console.ReadLine().Split(' ');
-            if (line.Length == 1) line = CharsToString(line[0]);
-            N = line.Length;
-            sN = (int)Math.Sqrt(N);
-            values = new int[N * N];
-            free = new List<int>();
-
-            for (int y = 0; y < N; y++) {
-                for (int x = 0; x < N; x++) {
-                    // pak de waarde van dit element
-                    int c = int.Parse(line[x]);
-                    // als deze niet leeg is, sla het dan op
-                    if (c != 0) values[ConvertCoord(x, y)] = c;
-                    // geef het anders op als veranderbare waarde
-                    else free.Add(ConvertCoord(x, y));
-                }
-                // ga naar de volgende regel
-                if (y < N - 1) {
-                    if (N > 9) line = Console.ReadLine().Split(' ');
-                    else line = CharsToString(Console.ReadLine());
-                }
-
-            }
-        }
-        #endregion
-
-        #region HELPERS
-        // print de sudoku
-        public override string ToString() {
-            string ret = "", div;
-            if (N > 10) div = " ";
-            else div = "";
-
-            for (int y = 0; y < N; y++) {
-                for (int x = 0; x < N; x++)
-                    ret += values[ConvertCoord(x, y)] + div;
-                ret += "\n";
-            }
-
-            return ret;
-        }
-        // converteer een coordinaat tussen 2d-1d en terug
-        public int ConvertCoord(int x, int y) {
-            return x + y * N;
-        }
-        public Tuple<int, int> ConvertCoord(int i) {
-            return new Tuple<int, int>(i % N, i / N);
-        }
-        #endregion
-
-        #region DOMEIN-FUNCTIE
-        // voer een geleverde functie uit over (de waarde van) de rij / de kolom / het blok van een bepaald coordinaat
-        public bool DomainFunc(int column, int row, Func<int, int, int, bool> function) {
-            int value = values[ConvertCoord(column, row)];
-
-            // ga door de rij en de kolom
-            for (int x = 0; x < N; x++) if (x != column && function(x, row, value)) return false;
-            for (int y = 0; y < N; y++) if (y != row && function(column, y, value)) return false;
-
-            // ga door het blok
-            int by = row - row % sN; int bx = column - column % sN;
-            for (int y = by; y < by + sN; y++) for (int x = bx; x < bx + sN; x++) if (x != column && y != row && function(x, y, value)) return false;
-
-            return true;
-        }
-        #endregion
-    }
-
-    #region SOLVERS
+namespace SudokuProblem {
     abstract class SudokuSolver {
         protected Sudoku sudoku;
         protected int index;
@@ -142,7 +23,8 @@ namespace Sudoku {
             //Console.WriteLine("Filling in space {0}/{1}", index, sudoku.free.Count);
 
             // stop als de hele sudoku bekeken is
-            if (Done) return true;
+            if (Done)
+                return true;
 
             Tuple<int, int> coord = sudoku.ConvertCoord(sudoku.free[index]);
 
@@ -165,10 +47,10 @@ namespace Sudoku {
     }
 
     #region BACKTRACKING
-    sealed class NaiveBacktracking : SudokuSolver {
+    sealed class BacktrackingChronological : SudokuSolver {
         int value;
 
-        public NaiveBacktracking(Sudoku s, int i = 0) {
+        public BacktrackingChronological(Sudoku s, int i = 0) {
             sudoku = s;
             value = 1;
             index = i;
@@ -179,7 +61,7 @@ namespace Sudoku {
         protected override bool Searching =>
             value <= sudoku.N;
         protected override SudokuSolver Next =>
-            new NaiveBacktracking(sudoku, index + 1);
+            new BacktrackingChronological(sudoku, index + 1);
 
         protected override void TryValue() {
             sudoku.values[sudoku.free[index]] = value++;
@@ -272,18 +154,18 @@ namespace Sudoku {
             RollbackDomains();
         }
     }
-    sealed class Ordered : ForwardChecking {
-        public Ordered(Sudoku s, int i = 0, List<List<int>> d = null) : base(s, i, d) { }
+    sealed class ForwardCheckingChronological : ForwardChecking {
+        public ForwardCheckingChronological(Sudoku s, int i = 0, List<List<int>> d = null) : base(s, i, d) { }
 
         protected override bool Done =>
             index >= sudoku.free.Count;
         protected override SudokuSolver Next =>
-            new Ordered(sudoku, index + 1, domains);
+            new ForwardCheckingChronological(sudoku, index + 1, domains);
     }
-    sealed class Heuristic : ForwardChecking {
+    sealed class ForwardCheckingHeuristic : ForwardChecking {
         List<int> passed;
 
-        public Heuristic(Sudoku s, int i = 0, List<List<int>> d = null, List<int> p = null) : base(s, i, d) {
+        public ForwardCheckingHeuristic(Sudoku s, int i = 0, List<List<int>> d = null, List<int> p = null) : base(s, i, d) {
             if (p == null) passed = new List<int>();
             else passed = p;
         }
@@ -307,8 +189,7 @@ namespace Sudoku {
         protected override bool Done =>
             passed.Count >= sudoku.free.Count;
         protected override SudokuSolver Next =>
-            new Heuristic(sudoku, NextIndex(), domains, passed);
+            new ForwardCheckingHeuristic(sudoku, NextIndex(), domains, passed);
     }
-    #endregion
     #endregion
 }
