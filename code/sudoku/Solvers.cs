@@ -7,12 +7,6 @@ namespace SudokuProblem {
         protected int value;
         protected int index;
 
-        private int expanded;
-
-        public SudokuSolver() {
-            expanded = 0;
-        }
-
         // geef aan of de sudoku klaar is, of nog ingevuld wordt
         protected abstract bool Done { get; }
         // geef aan of er nog gezocht wordt, of alle waardes al zijn geprobeerd
@@ -55,7 +49,7 @@ namespace SudokuProblem {
 
     #region BACKTRACKING
     sealed class BacktrackingChronological : SudokuSolver {
-        public BacktrackingChronological(Sudoku s, int i = 0) : base() {
+        public BacktrackingChronological(Sudoku s, int i = 0) {
             sudoku = s;
             value = 1;
             index = i;
@@ -85,7 +79,7 @@ namespace SudokuProblem {
         
         private List<int> domains_changed;
 
-        protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) : base() {
+        protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) {
             sudoku = s;
             domain_index = 0;
             domains = d;
