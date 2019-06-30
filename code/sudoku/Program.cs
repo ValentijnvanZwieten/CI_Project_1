@@ -12,7 +12,7 @@ class Program {
         
         Stopwatch stopwatch = new Stopwatch();
         int solved_sudokus = 0, total_sudokus = 0;
-        long total_ticks = 0, total_milliseconds = 0;
+        long total_ticks = 0, total_milliseconds = 0; int expanded = 0, total_expanded = 0;
         bool succes;
 
         Sudoku sudoku;
@@ -22,8 +22,7 @@ class Program {
         do {
             sudoku = new Sudoku();
             total_sudokus++;
-
-            // todo remove switch
+            
             switch (alg) {
                 case "CBT":
                     solver = new BacktrackingChronological(sudoku);
@@ -39,16 +38,18 @@ class Program {
                     return;
             }
 
+            expanded = 0;
+
             // hou bij hoe lang het oplossen duurt
             stopwatch.Start();
-            succes = solver.Solve();
+            succes = solver.Solve(ref expanded);
             stopwatch.Stop();
 
             // geef de resultaten weer en ga verder
             if (succes) {
-                Console.WriteLine("Solved sudoku {0} in {1} ticks ({2} milliseconds):\n{3}", total_sudokus, stopwatch.ElapsedTicks, stopwatch.ElapsedMilliseconds, sudoku);
+                Console.WriteLine("Solved sudoku {0} in {1} ticks ({2} milliseconds), with {3} expanded nodes:\n{4}", total_sudokus, stopwatch.ElapsedTicks, stopwatch.ElapsedMilliseconds, expanded, sudoku);
                 solved_sudokus++;
-                total_ticks += stopwatch.ElapsedTicks; total_milliseconds += stopwatch.ElapsedMilliseconds;
+                total_ticks += stopwatch.ElapsedTicks; total_milliseconds += stopwatch.ElapsedMilliseconds; total_expanded += expanded;
             } else {
                 Console.WriteLine("Failed to solve sudoku {0}.\n{1}", total_sudokus, sudoku);
             }
@@ -56,7 +57,7 @@ class Program {
             stopwatch.Reset();
         } while (Console.ReadLine() == "+");
 
-        if (solved_sudokus > 0) Console.WriteLine("Solved {0}/{1} sudoku's in {2} ticks ({3} milliseconds). Avarage solve time is {4} ticks ({5} milliseconds).", solved_sudokus, total_sudokus, total_ticks, total_milliseconds, total_ticks / solved_sudokus, total_milliseconds / solved_sudokus);
+        if (solved_sudokus > 0) Console.WriteLine("Solved {0}/{1} sudoku's in {2} ticks ({3} milliseconds), with {4} expanded nodes. Avarage solve time is {5} ticks ({6} milliseconds).", solved_sudokus, total_sudokus, total_ticks, total_milliseconds, total_expanded, total_ticks / solved_sudokus, total_milliseconds / solved_sudokus);
         else Console.WriteLine("Solved 0/{0} sudoku's.", total_sudokus);
     }
 }

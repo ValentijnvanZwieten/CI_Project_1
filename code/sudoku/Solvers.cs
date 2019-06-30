@@ -7,6 +7,12 @@ namespace SudokuProblem {
         protected int value;
         protected int index;
 
+        private int expanded;
+
+        public SudokuSolver() {
+            expanded = 0;
+        }
+
         // geef aan of de sudoku klaar is, of nog ingevuld wordt
         protected abstract bool Done { get; }
         // geef aan of er nog gezocht wordt, of alle waardes al zijn geprobeerd
@@ -20,7 +26,7 @@ namespace SudokuProblem {
         protected abstract bool ConstraintCheck(int column, int row);
 
         // vul de sudoku cel-voor-cel in aan de hand van de bovenstaande hulpmethoden
-        public bool Solve() {
+        public bool Solve(ref int expanded) {
             //Console.WriteLine("Filling in space {0}/{1}", index, sudoku.free.Count);
 
             // stop als de hele sudoku bekeken is
@@ -31,9 +37,10 @@ namespace SudokuProblem {
             while (Searching) {
                 // verander het eerste lege vakje naar de eerste beschikbare waarde
                 TryValue();
+                expanded += 1;
 
                 // kijk of deze legaal is, en ga in dit geval door
-                if (ConstraintCheck(coord.Item1, coord.Item2) && Next.Solve()) return true;
+                if (ConstraintCheck(coord.Item1, coord.Item2) && Next.Solve(ref expanded)) return true;
                 // haal de invulling anders weg
                 Reset();
             }
@@ -48,7 +55,7 @@ namespace SudokuProblem {
 
     #region BACKTRACKING
     sealed class BacktrackingChronological : SudokuSolver {
-        public BacktrackingChronological(Sudoku s, int i = 0) {
+        public BacktrackingChronological(Sudoku s, int i = 0) : base() {
             sudoku = s;
             value = 1;
             index = i;
@@ -78,7 +85,7 @@ namespace SudokuProblem {
         
         private List<int> domains_changed;
 
-        protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) {
+        protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) : base() {
             sudoku = s;
             domain_index = 0;
             domains = d;
