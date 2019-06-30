@@ -1,12 +1,6 @@
-Roep het programma aan op de volgende manier:
-| sudoku.exe [Algoritme] [Parameters] < [Sudoku-bestand]
+Het programma is aan te roepen op de volgende manier:
+| sudoku [algoritme] < [sudoku-bestand]
+Waar [algoritme] een uit CBT, CFC en HFC is, en [sudoku-bestand] de naam van het textbestand wat de op te lossen sudoku bevat.
 
-Waar [Algoritme] een uit ILS of SAS is, en [Sudoku-bestand] de naam van het textbestand wat de op te lossen sudoku bevat. [Parameters] is een uit volgende:
-• ILS: TimeOut, S, WalkCount
-• SAS: c, a
-
-Enkele voorbeelden:
-| sudoku.exe ILS 9 9 25 < 9x9.txt
-| sudoku.exe SAS 0.5 0.999 < 16x16.txt
-
-LET OP! Het gebruik van een '.' of een ',' voor floats (zoals vereist bij SAS) is bij ons inconsistent. Controleer dus of de opgegeven waardes overeenkomen met de geprinte waardes (eg 0.999 wordt 999).
+Een sudoku-bestand dient uitsluitend sudoku's te bevatten. Deze bestaan uit achtereenvolgende cijfers, verdeeld over meerdere regels, eventueel met spaties in het geval dat N > 9. Als er meerdere sudoku's in één keer afgespeeld moeten worden, zullen de verschillende sudoku's gescheiden moeten zijn met een regel die slechts een '+' bevat.
+Inbegrepen bij de code zijn alle bijgeleverde sudoku's, in correct format.
