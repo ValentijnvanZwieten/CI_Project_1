@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace SudokuProblem {
     abstract class SudokuSolver {
         protected Sudoku sudoku;
+        protected int value;
         protected int index;
 
         // geef aan of de sudoku klaar is, of nog ingevuld wordt
@@ -23,8 +24,7 @@ namespace SudokuProblem {
             //Console.WriteLine("Filling in space {0}/{1}", index, sudoku.free.Count);
 
             // stop als de hele sudoku bekeken is
-            if (Done)
-                return true;
+            if (Done) return true;
 
             Tuple<int, int> coord = sudoku.ConvertCoord(sudoku.free[index]);
 
@@ -48,8 +48,6 @@ namespace SudokuProblem {
 
     #region BACKTRACKING
     sealed class BacktrackingChronological : SudokuSolver {
-        int value;
-
         public BacktrackingChronological(Sudoku s, int i = 0) {
             sudoku = s;
             value = 1;
@@ -77,9 +75,8 @@ namespace SudokuProblem {
     abstract class ForwardChecking : SudokuSolver {
         protected int domain_index;
         protected List<List<int>> domains;
-
-        protected int value;
-        protected List<int> domains_changed;
+        
+        private List<int> domains_changed;
 
         protected ForwardChecking(Sudoku s, int i = 0, List<List<int>> d = null) {
             sudoku = s;
@@ -101,14 +98,17 @@ namespace SudokuProblem {
             for (int i = 0; i < sudoku.free.Count; i++) {
                 coord = sudoku.ConvertCoord(sudoku.free[i]);
 
+                // maak een lijst van alle getallen 1..N ...
                 domain = new List<int>();
                 for (int v = 0; v <= sudoku.N; v++) domain.Add(v);
 
                 sudoku.DomainFunc(coord.Item1, coord.Item2, (x, y, v) => {
+                    // ... en verwijder hieruit alle getallen die al voorkomen in de relevante cellen
                     domain.Remove(sudoku.values[sudoku.ConvertCoord(x, y)]);
                     return false;
                 });
 
+                // deze lijst is het domein van een gegeven coordinaat, voeg het toe aan de domein-lijst
                 domains.Add(domain);
             }
         }
@@ -118,6 +118,7 @@ namespace SudokuProblem {
             int free_index;
 
             sudoku.DomainFunc(coord.Item1, coord.Item2, (x, y, v) => {
+                // verwijder de waarde die aan de huidige cel is gegeven uit de domeinen van de relevante cellen
                 free_index = sudoku.free.IndexOf(sudoku.ConvertCoord(x, y));
                 if (free_index == -1) return false;
                 if (domains[free_index].Remove(v)) domains_changed.Add(free_index);
@@ -125,8 +126,12 @@ namespace SudokuProblem {
                 return domains[free_index].Count == 0;
             });
         }
+        // herstel een domein naar de vorige staat
         protected void RollbackDomains() {
-            foreach (int free_index in domains_changed) domains[free_index].Add(value);
+            foreach (int free_index in domains_changed) {
+                domains[free_index].Add(value);
+                domains[free_index].Sort();
+            }
             domains_changed = new List<int>();
         }
 
@@ -163,17 +168,19 @@ namespace SudokuProblem {
             new ForwardCheckingChronological(sudoku, index + 1, domains);
     }
     sealed class ForwardCheckingHeuristic : ForwardChecking {
-        List<int> passed;
+        private List<int> passed;
 
         public ForwardCheckingHeuristic(Sudoku s, int i = 0, List<List<int>> d = null, List<int> p = null) : base(s, i, d) {
             if (p == null) passed = new List<int>();
             else passed = p;
         }
 
+        // zoek de index van de volgende cel die bekeken gaat worden
         private int NextIndex() {
             passed.Add(index);
             int domain = -1, smallest = int.MaxValue;
 
+            // zoek de index van het kleinste domein
             for (int i = 0; i < domains.Count; i++)
                 if (domains[i].Count < smallest && !passed.Contains(i)) {
                     domain = i; smallest = domains[i].Count;
