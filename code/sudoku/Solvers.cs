@@ -128,9 +128,12 @@ namespace SudokuProblem {
         }
         // herstel een domein naar de vorige staat
         protected void RollbackDomains() {
+            int i;
+
             foreach (int free_index in domains_changed) {
-                domains[free_index].Add(value);
-                domains[free_index].Sort();
+                i = 0;
+                while (i < domains[free_index].Count && domains[free_index][i] < value) i++;
+                domains[free_index].Insert(i, value);
             }
             domains_changed = new List<int>();
         }
